@@ -1,0 +1,55 @@
+name: Build Flutter APK from App.zip
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Extract App.zip
+        run: |
+          unzip -o App.zip -d .
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Ensure Android project files exist
+        run: |
+          if [ ! -f "android/gradlew" ]; then
+            flutter create . --org com.camscan.pro --project-name camscan_pro --platforms=android
+            unzip -o App.zip "android/*" "lib/*" "pubspec.yaml" "test/*" -d .
+          fi
+          chmod +x android/gradlew || true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Run Tests
+        run: flutter test
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CamScanPro-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          
